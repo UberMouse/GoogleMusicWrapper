@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="http://schemas.awesomium.com/winfx"
         xmlns:core="clr-namespace:Awesomium.Core;assembly=Awesomium.Core"
-        Title="MainWindow" Height="900" Width="1440">
+        Title="Google Music" Height="900" Width="1440" SizeChanged="Google_Music_SizeChanged"
+        Icon="googlemusicicon.ico">
     <Window.Resources>
         <controls:WebSessionProvider x:Key="webSession" DataPath="Data">
             <core:WebPreferences SmoothScrolling="True"/>
@@ -12,13 +13,13 @@
     <Grid>
         <controls:WebControl 
             Name="webControl" 
-            Margin="5"
+            Margin="0,0,0,0"
             Source="http://google.com/music" 
             ConsoleMessage="webControl_ConsoleMessage"
             LoadingFrameComplete="WebControl_OnLoadingFrameComplete"
             NativeViewInitialized="WebControl_OnNativeViewInitialized"
             WebSession="{Binding Source={StaticResource webSession}}"
-            Height="900"
-            Width="1440"/>    
+            Height="1440"
+            Width="900"/>    
     </Grid>
 </Window>

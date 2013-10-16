@@ -1,27 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Forms;
-using System.Windows.Input;
-using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using Awesomium.Core;
-using Awesomium.Windows.Controls;
 using GoogleMusicWrapper.Properties;
 using Lpfm.LastFmScrobbler;
 using MessageBox = System.Windows.Forms.MessageBox;
@@ -86,9 +72,9 @@ namespace GoogleMusicWrapper
 
         class JSIntercepter : IResourceInterceptor
         {
-            private static Regex RE_LISTEN_JS = new Regex(@"^https?:\/\/ssl\.gstatic\.com\/play\/music\/\w+\/\w+\/listen_extended_\w+\.js", 
+            private static readonly Regex RE_LISTEN_JS = new Regex(@"^https?:\/\/ssl\.gstatic\.com\/play\/music\/\w+\/\w+\/listen_extended_\w+\.js", 
                                                           RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            private static Regex RE_LEX_ANCHOR = new Regex(@"var\s(\w)=\{eventName:.*?,eventSrc:.*?,payload:.*?\},\w=.*?;",
+            private static readonly Regex RE_LEX_ANCHOR = new Regex(@"var\s(\w)=\{eventName:.*?,eventSrc:.*?,payload:.*?\},\w=.*?;",
                                                            RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
             public ResourceResponse OnRequest(ResourceRequest request)
@@ -218,6 +204,13 @@ namespace GoogleMusicWrapper
             currentlyPlaying = !currentlyPlaying;
             if(currentlyPlaying)
                 scrobbler.NowPlaying(currentTrack);
+        }
+
+        private void Google_Music_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            webControl.RenderSize = e.NewSize;
+            webControl.Height = e.NewSize.Height-40;
+            webControl.Width = e.NewSize.Width-18;
         }
     }
 }
