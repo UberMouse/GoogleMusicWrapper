@@ -1,0 +1,24 @@
+﻿<Window x:Name="Google_Music" x:Class="GoogleMusicWrapper.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="http://schemas.awesomium.com/winfx"
+        xmlns:core="clr-namespace:Awesomium.Core;assembly=Awesomium.Core"
+        Title="MainWindow" Height="900" Width="1440">
+    <Window.Resources>
+        <controls:WebSessionProvider x:Key="webSession" DataPath="Data">
+            <core:WebPreferences SmoothScrolling="True"/>
+        </controls:WebSessionProvider>
+    </Window.Resources>
+    <Grid>
+        <controls:WebControl 
+            Name="webControl" 
+            Margin="5"
+            Source="http://google.com/music" 
+            ConsoleMessage="webControl_ConsoleMessage"
+            LoadingFrameComplete="WebControl_OnLoadingFrameComplete"
+            NativeViewInitialized="WebControl_OnNativeViewInitialized"
+            WebSession="{Binding Source={StaticResource webSession}}"
+            Height="900"
+            Width="1440"/>    
+    </Grid>
+</Window>

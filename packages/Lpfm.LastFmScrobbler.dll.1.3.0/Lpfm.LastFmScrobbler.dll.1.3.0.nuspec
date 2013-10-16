@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>Lpfm.LastFmScrobbler.dll</id>
+    <version>1.3.0</version>
+    <title>Lpfm.LastFmScrobbler.dll</title>
+    <authors>Daniel Larsen,  Adam Haile</authors>
+    <owners>Daniel Larsen,  Adam Haile</owners>
+    <licenseUrl>http://lpfm.codeplex.com/license</licenseUrl>
+    <projectUrl>http://lpfm.codeplex.com/</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>LPFM Last.fm Scrobbler is a simple .NET API library for scrobbling to the Last.fm web service.</description>
+    <releaseNotes>Added Proxy support, now targets .Net Framework 4 client profile (was full profile), added support for Love, Unlove, Ban, Unban Last.FM API methods</releaseNotes>
+    <copyright>Copyright 2011 - 2012</copyright>
+    <language />
+    <tags>.NET4 API last.fm scrobbler webservice</tags>
+  </metadata>
+</package>
