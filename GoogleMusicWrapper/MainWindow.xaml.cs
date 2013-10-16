@@ -15,16 +15,16 @@ using MessageBox = System.Windows.Forms.MessageBox;
 namespace GoogleMusicWrapper
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    ///     Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow
     {
+        private const string LASTFM_API_KEY = "cb46a0c5eea4592f36f8877ad1e7458f";
+        private const string LASTFM_SECRET = "4f46a32528437d209db58aa5176d90d4";
         private static Scrobbler scrobbler;
         private static Track currentTrack;
-        private static bool currentlyPlaying = false;
-        private static bool scrobbled = false;
-        private const string LASTFM_API_KEY = "49bcc70745b596db85c929ba15311acb";
-        private const string LASTFM_SECRET = "55b12642d4608cfb9d3e0857d2cdefe2";
+        private static bool currentlyPlaying;
+        private static bool scrobbled;
 
         public MainWindow()
         {
@@ -36,7 +36,8 @@ namespace GoogleMusicWrapper
         private void InitLastFM()
         {
             var settings = Settings.Default;
-            scrobbler = new Scrobbler(LASTFM_API_KEY, LASTFM_SECRET, (settings.LastFmSession != "") ? settings.LastFmSession : null);
+            scrobbler = new Scrobbler(LASTFM_API_KEY, LASTFM_SECRET,
+                (settings.LastFmSession != "") ? settings.LastFmSession : null);
 
             if (settings.LastFmSession != "") return;
 
@@ -57,81 +58,21 @@ namespace GoogleMusicWrapper
 
         private void webControl_ConsoleMessage(object sender, ConsoleMessageEventArgs e)
         {
-            if (!e.Message.Contains("Unsafe JavaScript"))
-            {
-                Debug.WriteLine(e.Message);
-                Debug.WriteLine(e.LineNumber);
-            }
+            if (e.Message.Contains("Unsafe JavaScript")) return;
+
+            Debug.WriteLine(e.Message);
+            Debug.WriteLine(e.LineNumber);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            GlobalHotkey.RegisterHotKey(Keys.MediaPlayPause, this, () => webControl.ExecuteJavascript("SJBpost('playPause');"));
-        }
-
-        class JSIntercepter : IResourceInterceptor
-        {
-            private static readonly Regex RE_LISTEN_JS = new Regex(@"^https?:\/\/ssl\.gstatic\.com\/play\/music\/\w+\/\w+\/listen_extended_\w+\.js", 
-                                                          RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            private static readonly Regex RE_LEX_ANCHOR = new Regex(@"var\s(\w)=\{eventName:.*?,eventSrc:.*?,payload:.*?\},\w=.*?;",
-                                                           RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-            public ResourceResponse OnRequest(ResourceRequest request)
-            {
-                if (!RE_LISTEN_JS.IsMatch(request.Url.AbsoluteUri)) return null;
-
-                var req = (HttpWebRequest)WebRequest.Create(request.Url);
-                var resp = (HttpWebResponse)req.GetResponse();
-
-                using(var sr = new StreamReader(resp.GetResponseStream())) {
-                    var code = sr.ReadToEnd();
-
-                    var match = RE_LEX_ANCHOR.Match(code);
-                    var slice_start = match.Index + match.Groups[0].Length;
-
-                    var head = code.Substring(0, slice_start);
-                    var tail = code.Substring(slice_start, code.Length-slice_start);
-                    var modifiedData = head + "if(window.gms_event !== undefined){window.gms_event(" + match.Groups[1] +
-                                       ");}" + tail;
-
-                    var jqueryReq = (HttpWebRequest)WebRequest.Create("http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js");
-                    var response = (HttpWebResponse)jqueryReq.GetResponse();
-                    using (var reader = new StreamReader(response.GetResponseStream()))
-                    {
-                        var jquery = reader.ReadToEnd();
-                        modifiedData += ";" + jquery;
-                    }
-
-                    var buffer = new byte[modifiedData.Length];
-                    var encoding = new UTF8Encoding();
-
-                    encoding.GetBytes(modifiedData, 0, modifiedData.Length, buffer, 0);
-
-                    // Initialize unmanaged memory to hold the array.
-                    var size = Marshal.SizeOf( buffer[ 0 ] ) * modifiedData.Length;
-                    var pnt = Marshal.AllocHGlobal( size );
-
-                    try
-                    {
-                        // Copy the array to unmanaged memory.
-                        Marshal.Copy(buffer, 0, pnt, buffer.Length);
-                        return ResourceResponse.Create((uint)buffer.Length, pnt, "text/javascript");
-                    }
-                    finally
-                    {
-                        // Data is not owned by the ResourceResponse. A copy is made 
-                        // of the supplied buffer. We can safely free the unmanaged memory.
-                        Marshal.FreeHGlobal(pnt);
-                    }
-                }
-                return null;
-            }
-
-            public bool OnFilterNavigation(NavigationRequest request)
-            {
-                return false;
-            }
+            GlobalHotkey.RegisterHotKey(Keys.MediaPlayPause, 
+                                        this,
+                                        () => webControl.ExecuteJavascript("SJBpost('playPause');"));
+            GlobalHotkey.RegisterHotKey(Keys.MediaNextTrack,
+                                        this,
+                                        () => webControl.ExecuteJavascript("SJBpost('nextSong');"));
         }
 
         private void WebControl_OnLoadingFrameComplete(object sender, FrameEventArgs e)
@@ -148,17 +89,11 @@ namespace GoogleMusicWrapper
             // Acquire the parent first.
             JSObject external = webControl.CreateGlobalJavascriptObject("external");
 
-            if (external == null)
-                return;
-
             using (external)
             {
                 // Create a child using fully qualified name. This only succeeds if
                 // the parent is created first.
                 JSObject app = webControl.CreateGlobalJavascriptObject("external.app");
-
-                if (app == null)
-                    return;
 
                 using (app)
                 {
@@ -202,15 +137,86 @@ namespace GoogleMusicWrapper
         private void OnPlayPause(object sender, JavascriptMethodEventArgs e)
         {
             currentlyPlaying = !currentlyPlaying;
-            if(currentlyPlaying)
+            if (currentlyPlaying)
                 scrobbler.NowPlaying(currentTrack);
         }
 
         private void Google_Music_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             webControl.RenderSize = e.NewSize;
-            webControl.Height = e.NewSize.Height-40;
-            webControl.Width = e.NewSize.Width-18;
+            webControl.Height = e.NewSize.Height - 40;
+            webControl.Width = e.NewSize.Width - 18;
+        }
+
+        private class JSIntercepter : IResourceInterceptor
+        {
+            private static readonly Regex RE_LISTEN_JS =
+                new Regex(@"^https?:\/\/ssl\.gstatic\.com\/play\/music\/\w+\/\w+\/listen_extended_\w+\.js",
+                    RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+            private static readonly Regex RE_LEX_ANCHOR =
+                new Regex(@"var\s(\w)=\{eventName:.*?,eventSrc:.*?,payload:.*?\},\w=.*?;",
+                    RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+            public ResourceResponse OnRequest(ResourceRequest request)
+            {
+                if (!RE_LISTEN_JS.IsMatch(request.Url.AbsoluteUri)) return null;
+
+                var req = (HttpWebRequest) WebRequest.Create(request.Url);
+                var resp = (HttpWebResponse) req.GetResponse();
+
+                using (var sr = new StreamReader(resp.GetResponseStream()))
+                {
+                    var code = sr.ReadToEnd();
+
+                    var match = RE_LEX_ANCHOR.Match(code);
+                    var slice_start = match.Index + match.Groups[0].Length;
+
+                    var head = code.Substring(0, slice_start);
+                    var tail = code.Substring(slice_start, code.Length - slice_start);
+                    var modifiedData = head + "if(window.gms_event !== undefined){window.gms_event(" +
+                                       match.Groups[1] +
+                                       ");}" + tail;
+
+                    var jqueryReq =
+                        (HttpWebRequest)
+                            WebRequest.Create("http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js");
+                    var response = (HttpWebResponse) jqueryReq.GetResponse();
+                    using (var reader = new StreamReader(response.GetResponseStream()))
+                    {
+                        var jquery = reader.ReadToEnd();
+                        modifiedData += ";" + jquery;
+                    }
+
+                    var buffer = new byte[modifiedData.Length];
+                    var encoding = new UTF8Encoding();
+
+                    encoding.GetBytes(modifiedData, 0, modifiedData.Length, buffer, 0);
+
+                    // Initialize unmanaged memory to hold the array.
+                    var size = Marshal.SizeOf(buffer[0])*modifiedData.Length;
+                    var pnt = Marshal.AllocHGlobal(size);
+
+                    try
+                    {
+                        // Copy the array to unmanaged memory.
+                        Marshal.Copy(buffer, 0, pnt, buffer.Length);
+                        return ResourceResponse.Create((uint) buffer.Length, pnt, "text/javascript");
+                    }
+                    finally
+                    {
+                        // Data is not owned by the ResourceResponse. A copy is made 
+                        // of the supplied buffer. We can safely free the unmanaged memory.
+                        Marshal.FreeHGlobal(pnt);
+                    }
+                }
+                return null;
+            }
+
+            public bool OnFilterNavigation(NavigationRequest request)
+            {
+                return false;
+            }
         }
     }
 }
