@@ -35,26 +35,6 @@ window.scrobbler = {
     }
 }
 
-//window.scrobbler.playSong = function(event) {
-//    if(event.detail === null && event.detail.song === undefined) return;
-//                                            
-//    song = event.detail.song.a;
-//
-//    var title = song[1];
-//    var album = song[4];
-//    var artist = song[3];
-//    var durationMillis = song[13];
-//    external.app.nowPlaying(artist, album, title, durationMillis);
-//    setPlayingState(true);
-//    nowPlaying = true;
-//};
-//
-//window.scrobbler.playPause = function (event) {
-//    external.app.onPlayPause();
-//    nowPlaying = !nowPlaying;
-//    setPlayingState(nowPlaying);
-//};
-
 $('#loading-progress').attrmonitor({
     attributes: ['style'],
     callback: function (event) {
