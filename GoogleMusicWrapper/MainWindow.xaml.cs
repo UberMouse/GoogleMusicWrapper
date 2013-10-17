@@ -152,13 +152,17 @@ namespace GoogleMusicWrapper
 
             scrobbler.Scrobble(currentTrack);
             scrobbled = true;
+            ProcessScrobbleQueue();
         }
 
         private void OnPlayPause(object sender, JavascriptMethodEventArgs e)
         {
             currentlyPlaying = !currentlyPlaying;
             if (currentlyPlaying)
+            {
                 scrobbler.NowPlaying(currentTrack);
+                ProcessScrobbleQueue();
+            }
         }
 
         private void Google_Music_SizeChanged(object sender, SizeChangedEventArgs e)
