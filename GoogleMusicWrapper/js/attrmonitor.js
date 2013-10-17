@@ -32,7 +32,6 @@
                                 value: value
                             });
 
-                            console.log('attribute "' + attrName + '" changed to "' + value + '"');
                         }
                     }
                 }, instance.options.interval);
