@@ -7,10 +7,8 @@ var capture_events = [
 ];
 
 window.gms_event = function (event) {
-    if (capture_events.indexOf(event.eventName) > -1) {
-        console.log(event.payload);
+    if (capture_events.indexOf(event.eventName) > -1) 
         window.scrobbler[event.eventName](event.payload);
-    }
 };
 
 window.scrobbler = {
