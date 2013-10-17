@@ -21,7 +21,7 @@ namespace GoogleMusicWrapper
     {
         private const string LASTFM_API_KEY = "cb46a0c5eea4592f36f8877ad1e7458f";
         private const string LASTFM_SECRET = "4f46a32528437d209db58aa5176d90d4";
-        private static Scrobbler scrobbler;
+        private static QueuingScrobbler scrobbler;
         private static Track currentTrack;
         private static bool currentlyPlaying;
         private static bool scrobbled;
@@ -36,16 +36,19 @@ namespace GoogleMusicWrapper
         private void InitLastFM()
         {
             var settings = Settings.Default;
-            scrobbler = new Scrobbler(LASTFM_API_KEY, LASTFM_SECRET,
-                (settings.LastFmSession != "") ? settings.LastFmSession : null);
+            scrobbler = new QueuingScrobbler(LASTFM_API_KEY, 
+                                             LASTFM_SECRET,
+                                             (settings.LastFmSession != "") ? settings.LastFmSession : null);
 
             if (settings.LastFmSession != "") return;
 
-            Process.Start(scrobbler.GetAuthorisationUri());
+            var authScrobbler = new Scrobbler(LASTFM_API_KEY, LASTFM_SECRET);
+
+            Process.Start(authScrobbler.GetAuthorisationUri());
 
             MessageBox.Show("Click OK when Application authenticated");
 
-            settings.LastFmSession = scrobbler.GetSession();
+            settings.LastFmSession = authScrobbler.GetSession();
             settings.Save();
         }
 
@@ -75,12 +78,21 @@ namespace GoogleMusicWrapper
                                         () => webControl.ExecuteJavascript("SJBpost('nextSong');"));
         }
 
+        private delegate void ProcessScrobblesDelegate();
+
+        private void ProcessScrobbles()
+        {
+            // Processes the scrobbles and discards any responses. This could be improved with thread-safe
+            //  logging and/or error handling
+            scrobbler.Process();
+        }
+
         private void WebControl_OnLoadingFrameComplete(object sender, FrameEventArgs e)
         {
             if (webControl == null || !webControl.IsLive || !e.IsMainFrame || !webControl.IsDocumentReady) return;
 
-            webControl.ExecuteJavascript(File.ReadAllText("attrmonitor.js"));
-            webControl.ExecuteJavascript(File.ReadAllText("Scrobbler.js"));
+            webControl.ExecuteJavascript(File.ReadAllText("js/attrmonitor.js"));
+            webControl.ExecuteJavascript(File.ReadAllText("js/Scrobbler.js"));
         }
 
         private void WebControl_OnNativeViewInitialized(object sender, WebViewEventArgs e)
@@ -119,6 +131,14 @@ namespace GoogleMusicWrapper
             scrobbler.NowPlaying(currentTrack);
             scrobbled = false;
             currentlyPlaying = true;
+
+            ProcessScrobbleQueue();
+        }
+
+        private void ProcessScrobbleQueue()
+        {
+            var doProcessScrobbles = new ProcessScrobblesDelegate(ProcessScrobbles);
+            doProcessScrobbles.BeginInvoke(null, null);
         }
 
         private void DetectScrobble(object sender, JavascriptMethodEventArgs e)
