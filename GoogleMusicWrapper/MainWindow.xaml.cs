@@ -5,6 +5,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Timers;
 using System.Windows;
 using System.Windows.Forms;
 using Awesomium.Core;
@@ -22,13 +23,13 @@ namespace GoogleMusicWrapper
         private const string LASTFM_API_KEY = "cb46a0c5eea4592f36f8877ad1e7458f";
         private const string LASTFM_SECRET = "4f46a32528437d209db58aa5176d90d4";
         private static QueuingScrobbler scrobbler;
-        private static Track currentTrack;
+        private static Track currentTrack = new Track();
         private static bool currentlyPlaying;
         private static bool scrobbled;
+        private static System.Timers.Timer scrobblerTimer;
 
         public MainWindow()
         {
-            WebCore.Started += WebCoreOnStarted;
             InitializeComponent();
             InitLastFM();
         }
@@ -52,13 +53,6 @@ namespace GoogleMusicWrapper
             settings.Save();
         }
 
-        private void WebCoreOnStarted(object sender, CoreStartEventArgs coreStartEventArgs)
-        {
-            var interceptor = new JSIntercepter();
-
-            WebCore.ResourceInterceptor = interceptor;
-        }
-
         private void webControl_ConsoleMessage(object sender, ConsoleMessageEventArgs e)
         {
             if (e.Message.Contains("Unsafe JavaScript")) return;
@@ -70,12 +64,23 @@ namespace GoogleMusicWrapper
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            GlobalHotkey.RegisterHotKey(Keys.MediaPlayPause, 
+            GlobalHotkeys.RegisterHotKey(Keys.MediaPlayPause, 
                                         this,
-                                        () => webControl.ExecuteJavascript("SJBpost('playPause');"));
-            GlobalHotkey.RegisterHotKey(Keys.MediaNextTrack,
+                                        () => {
+                                            webControl.ExecuteJavascript("SJBpost('playPause');");
+                                            OnPlayPause();
+                                        });
+            GlobalHotkeys.RegisterHotKey(Keys.MediaNextTrack,
                                         this,
                                         () => webControl.ExecuteJavascript("SJBpost('nextSong');"));
+            GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack, 
+                                        this,
+                                        () =>
+                                        {
+                                            webControl.ExecuteJavascript("$('.thumbs:first > li').first().click();");
+                                            if(currentTrack != null)
+                                                scrobbler.Love(currentTrack);
+                                        });
         }
 
         private delegate void ProcessScrobblesDelegate();
@@ -91,8 +96,20 @@ namespace GoogleMusicWrapper
         {
             if (webControl == null || !webControl.IsLive || !e.IsMainFrame || !webControl.IsDocumentReady) return;
 
+            webControl.ExecuteJavascript(@"(function() {
+                                               var script = document.createElement('script');
+                                               script.src = '//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js';
+                                               script.onload = script.onreadystatechange = function(){external.app.injectJs();};
+                                               document.body.appendChild( script );
+                                           })()");
+
+        }
+
+        private void InjectJavaScript()
+        {
             webControl.ExecuteJavascript(File.ReadAllText("js/attrmonitor.js"));
             webControl.ExecuteJavascript(File.ReadAllText("js/Scrobbler.js"));
+            webControl.ExecuteJavascript("window.scrobbler.init()");
         }
 
         private void WebControl_OnNativeViewInitialized(object sender, WebViewEventArgs e)
@@ -110,29 +127,52 @@ namespace GoogleMusicWrapper
                 using (app)
                 {
                     app.Bind("nowPlaying", false, UpdateNowPlaying);
-                    app.Bind("onPlayPause", false, OnPlayPause);
-                    app.Bind("trackPercent", false, DetectScrobble);
+                    app.Bind("injectJs", false, ReloadJs);
                 }
             }
         }
 
+        private void ReloadJs(object sender, JavascriptMethodEventArgs e)
+        {
+            InjectJavaScript();
+        }
+
         private void UpdateNowPlaying(object sender, JavascriptMethodEventArgs e)
         {
-            if (e.Arguments.Length < 3)
+            if (e.Arguments.Length < 3 || e.Arguments[2].ToString() == currentTrack.TrackName)
                 return;
+
             currentTrack = new Track
             {
                 ArtistName = e.Arguments[0],
                 AlbumName = e.Arguments[1],
                 TrackName = e.Arguments[2],
-                Duration = TimeSpan.FromMilliseconds(int.Parse(e.Arguments[3])),
+                Duration = TimeSpan.FromSeconds(int.Parse(e.Arguments[3])),
                 WhenStartedPlaying = DateTime.Now
             };
+
+            if (((int)currentTrack.Duration.TotalMilliseconds) == 0) return;
+
             scrobbler.NowPlaying(currentTrack);
             scrobbled = false;
             currentlyPlaying = true;
 
             ProcessScrobbleQueue();
+
+            scrobblerTimer = new System.Timers.Timer(currentTrack.Duration.TotalMilliseconds/2);
+            scrobblerTimer.Elapsed += ScrobblerTimerOnElapsed;
+            scrobblerTimer.Start();
+            scrobblerTimer.AutoReset = false;
+        }
+
+        private void ScrobblerTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
+        {
+            scrobblerTimer.Stop();
+            if (scrobbled) return;
+
+            scrobbler.Scrobble(currentTrack);
+            ProcessScrobbleQueue();
+            scrobbled = true;
         }
 
         private void ProcessScrobbleQueue()
@@ -141,25 +181,15 @@ namespace GoogleMusicWrapper
             doProcessScrobbles.BeginInvoke(null, null);
         }
 
-        private void DetectScrobble(object sender, JavascriptMethodEventArgs e)
-        {
-            if (e.Arguments.Length < 1)
-                return;
-
-            var percent = double.Parse(e.Arguments[0]);
-
-            if (percent <= 0.55 || scrobbled) return;
-
-            scrobbler.Scrobble(currentTrack);
-            scrobbled = true;
-            ProcessScrobbleQueue();
-        }
-
-        private void OnPlayPause(object sender, JavascriptMethodEventArgs e)
+        private void OnPlayPause()
         {
             currentlyPlaying = !currentlyPlaying;
-            if (!currentlyPlaying) return;
-
+            if (!currentlyPlaying)
+            {
+                scrobblerTimer.Stop();
+                return;
+            }
+            scrobblerTimer.Start();
             scrobbler.NowPlaying(currentTrack);
             ProcessScrobbleQueue();
         }
@@ -169,77 +199,6 @@ namespace GoogleMusicWrapper
             webControl.RenderSize = e.NewSize;
             webControl.Height = e.NewSize.Height - 40;
             webControl.Width = e.NewSize.Width - 18;
-        }
-
-        private class JSIntercepter : IResourceInterceptor
-        {
-            private static readonly Regex RE_LISTEN_JS =
-                new Regex(@"^https?:\/\/ssl\.gstatic\.com\/play\/music\/\w+\/\w+\/listen_extended_\w+\.js",
-                    RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-            private static readonly Regex RE_LEX_ANCHOR =
-                new Regex(@"var\s(\w)=\{eventName:.*?,eventSrc:.*?,payload:.*?\},\w=.*?;",
-                    RegexOptions.Multiline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-            public ResourceResponse OnRequest(ResourceRequest request)
-            {
-                if (!RE_LISTEN_JS.IsMatch(request.Url.AbsoluteUri)) return null;
-
-                var req = (HttpWebRequest) WebRequest.Create(request.Url);
-                var resp = (HttpWebResponse) req.GetResponse();
-
-                using (var sr = new StreamReader(resp.GetResponseStream()))
-                {
-                    var code = sr.ReadToEnd();
-
-                    var match = RE_LEX_ANCHOR.Match(code);
-                    var slice_start = match.Index + match.Groups[0].Length;
-
-                    var head = code.Substring(0, slice_start);
-                    var tail = code.Substring(slice_start, code.Length - slice_start);
-                    var modifiedData = head + "if(window.gms_event !== undefined){window.gms_event(" +
-                                       match.Groups[1] +
-                                       ");}" + tail;
-
-                    var jqueryReq =
-                        (HttpWebRequest)
-                            WebRequest.Create("http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js");
-                    var response = (HttpWebResponse) jqueryReq.GetResponse();
-                    using (var reader = new StreamReader(response.GetResponseStream()))
-                    {
-                        var jquery = reader.ReadToEnd();
-                        modifiedData += ";" + jquery;
-                    }
-
-                    var buffer = new byte[modifiedData.Length];
-                    var encoding = new UTF8Encoding();
-
-                    encoding.GetBytes(modifiedData, 0, modifiedData.Length, buffer, 0);
-
-                    // Initialize unmanaged memory to hold the array.
-                    var size = Marshal.SizeOf(buffer[0])*modifiedData.Length;
-                    var pnt = Marshal.AllocHGlobal(size);
-
-                    try
-                    {
-                        // Copy the array to unmanaged memory.
-                        Marshal.Copy(buffer, 0, pnt, buffer.Length);
-                        return ResourceResponse.Create((uint) buffer.Length, pnt, "text/javascript");
-                    }
-                    finally
-                    {
-                        // Data is not owned by the ResourceResponse. A copy is made 
-                        // of the supplied buffer. We can safely free the unmanaged memory.
-                        Marshal.FreeHGlobal(pnt);
-                    }
-                }
-                return null;
-            }
-
-            public bool OnFilterNavigation(NavigationRequest request)
-            {
-                return false;
-            }
         }
     }
 }

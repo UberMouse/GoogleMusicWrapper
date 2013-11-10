@@ -1,81 +1,65 @@
-﻿$ = jQuery;
-var nowPlaying = false;
-
-var capture_events = [
-    'playSong',
-    'playPause',
-];
-
-window.gms_event = function (event) {
-    if (capture_events.indexOf(event.eventName) > -1) 
-        window.scrobbler[event.eventName](event.payload);
-};
-
+﻿var $ = jQuery;
 window.scrobbler = {
-    playSong: function (event) {
-        if (event === null && event.song === undefined) return;
-
-        song = event.song.a;
-
-        var title = song[1];
-        var album = song[4];
-        var artist = song[3];
-        var durationMillis = song[13];
-        external.app.nowPlaying(artist, album, title, durationMillis);
-        setPlayingState(true);
-        nowPlaying = true;
+    init: function() {
+        window.scrobbler.lastSongTitle = "";
+        window.setInterval("window.scrobbler.detectTrack()", 1000);
     },
+
+    detectTrack: function() {
+        var parsedInfo = parseInfo();
+        var artist = parsedInfo['artist'];
+        var track = parsedInfo['track'];
+        var album = parsedInfo['album'];
+        var duration = parsedInfo['duration'];
+
+        if (this.lastSongTitle == track) return;
+
+        external.app.nowPlaying(artist, album, track, duration);
+    },
+};
     
-    playPause: function (event) {
-        external.app.onPlayPause();
-        nowPlaying = !nowPlaying;
-        setPlayingState(nowPlaying);
+function parseInfo() {
+    var artist = '';
+    var track = '';
+    var album = '';
+    var duration = 0;
+
+    // Get artist and song names
+    var artistValue = $("div#player-artist").text();
+    var trackValue = $("div#playerSongTitle").text();
+    var albumValue = $("div.player-album").text();
+    var durationValue = $("div#time_container_duration").text();
+
+    try {
+        if (null != artistValue) {
+            artist = artistValue.replace(/^\s+|\s+$/g, '');
+        }
+        if (null != trackValue) {
+            track = trackValue.replace(/^\s+|\s+$/g, '');
+        }
+        if (null != albumValue) {
+            album = albumValue.replace(/^\s+|\s+$/g, '');
+        }
+        if (null != durationValue) {
+            duration = parseDuration(durationValue);
+        }
+    } catch(err) {
+        return { artist: '', track: '', duration: 0 };
     }
+
+    //console.log("artist: " + artist + ", track: " + track + ", album: " + album + ", duration: " + duration);
+
+    return { artist: artist, track: track, album: album, duration: duration };
 }
 
-$('#loading-progress').attrmonitor({
-    attributes: ['style'],
-    callback: function (event) {
-        if (event.attribute == 'style' &&
-            event.value !== null &&
-            event.value.replace(' ', '').indexOf('display:none;') !== -1) {
-            sliderMonitor();
-            $('#loading-progress').attrmonitor('destroy');
-        }
-    }
-});
+function parseDuration(artistTitle) {
+    try {
+        var match = artistTitle.match(/\d+:\d+/g)[0];
 
-function sliderMonitor() {
-    var sliderMax = null;
-
-    function change(event) {
-        if (event.attribute == 'aria-valuenow') {
-            if (sliderMax < 30 * 1000) {
-                return;
-            }
-
-            var perc = event.value / sliderMax;
-
-            external.app.trackPercent(perc);
-        } else if (event.attribute == 'aria-valuemax') {
-            sliderMax = event.value;
-        }
-    }
-    
-    $('#slider').attrmonitor({
-        attributes: ['aria-valuenow', 'aria-valuemax'],
-        interval: 1000,
-        start: false,
-        callback: change
-    });
-}
-
-function setPlayingState(value) {
-    playing = value;
-
-    if (playing === true) {
-        $('#slider').attrmonitor('start');
-    } else if (playing === false) {
-        $('#slider').attrmonitor('stop');
+        var mins = match.substring(0, match.indexOf(':'));
+        var seconds = match.substring(match.indexOf(':') + 1);
+        return parseInt(mins * 60) + parseInt(seconds);
+    } catch(err) {
+        return 0;
     }
 }
