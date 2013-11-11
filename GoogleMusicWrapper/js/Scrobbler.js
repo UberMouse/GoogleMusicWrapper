@@ -3,6 +3,29 @@ window.scrobbler = {
     init: function() {
         window.scrobbler.lastSongTitle = "";
         window.setInterval("window.scrobbler.detectTrack()", 1000);
+        
+        var sliderMax = null;
+
+        function change(event) {
+            if (event.attribute == 'aria-valuenow') {
+                if (sliderMax < 30 * 1000) {
+                    return;
+                }
+
+                var perc = event.value / sliderMax;
+
+                external.app.detectScrobble(perc);
+            } else if (event.attribute == 'aria-valuemax') {
+                sliderMax = event.value;
+            }
+        }
+
+        $('#slider').attrmonitor({
+            attributes: ['aria-valuenow', 'aria-valuemax'],
+            interval: 1000,
+            start: true,
+            callback: change
+        });
     },
 
     detectTrack: function() {
@@ -14,7 +37,8 @@ window.scrobbler = {
 
         if (this.lastSongTitle == track) return;
 
-        external.app.nowPlaying(artist, album, track, duration);
+        this.lastSongTitle = track;
+        external.app.updateNowPlaying(artist, album, track, duration);
     },
 };
     

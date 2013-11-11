@@ -26,7 +26,6 @@ namespace GoogleMusicWrapper
         private static Track currentTrack = new Track();
         private static bool currentlyPlaying;
         private static bool scrobbled;
-        private static System.Timers.Timer scrobblerTimer;
 
         public MainWindow()
         {
@@ -126,20 +125,37 @@ namespace GoogleMusicWrapper
 
                 using (app)
                 {
-                    app.Bind("nowPlaying", false, UpdateNowPlaying);
-                    app.Bind("injectJs", false, ReloadJs);
+                    app.Bind("updateNowPlaying", false, UpdateNowPlaying);
+                    app.Bind("injectJs", false, InjectJs);
+                    app.Bind("detectScrobble", false, DetectScrobble);
                 }
             }
         }
 
-        private void ReloadJs(object sender, JavascriptMethodEventArgs e)
+        private void DetectScrobble(object sender, JavascriptMethodEventArgs e)
+        {
+            if (e.Arguments.Length < 1) return;
+
+            var percent = double.Parse(e.Arguments[0]);
+
+            if (percent <= 0.55 || scrobbled) return;
+
+            //So if you pause a song for a day and scrobble it later the timestamp isn't stale
+            currentTrack.WhenStartedPlaying = DateTime.Now - TimeSpan.FromSeconds(currentTrack.Duration.TotalSeconds / 2);
+
+            scrobbler.Scrobble(currentTrack);
+            scrobbled = true;
+            ProcessScrobbleQueue();
+        }
+
+        private void InjectJs(object sender, JavascriptMethodEventArgs e)
         {
             InjectJavaScript();
         }
 
         private void UpdateNowPlaying(object sender, JavascriptMethodEventArgs e)
         {
-            if (e.Arguments.Length < 3 || e.Arguments[2].ToString() == currentTrack.TrackName)
+            if (e.Arguments.Length < 3 || e.Arguments[2].ToString() == currentTrack.TrackName || e.Arguments[3] == 0)
                 return;
 
             currentTrack = new Track
@@ -147,8 +163,7 @@ namespace GoogleMusicWrapper
                 ArtistName = e.Arguments[0],
                 AlbumName = e.Arguments[1],
                 TrackName = e.Arguments[2],
-                Duration = TimeSpan.FromSeconds(int.Parse(e.Arguments[3])),
-                WhenStartedPlaying = DateTime.Now
+                Duration = TimeSpan.FromSeconds(int.Parse(e.Arguments[3]))
             };
 
             if (((int)currentTrack.Duration.TotalMilliseconds) == 0) return;
@@ -158,21 +173,6 @@ namespace GoogleMusicWrapper
             currentlyPlaying = true;
 
             ProcessScrobbleQueue();
-
-            scrobblerTimer = new System.Timers.Timer(currentTrack.Duration.TotalMilliseconds/2);
-            scrobblerTimer.Elapsed += ScrobblerTimerOnElapsed;
-            scrobblerTimer.Start();
-            scrobblerTimer.AutoReset = false;
-        }
-
-        private void ScrobblerTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
-        {
-            scrobblerTimer.Stop();
-            if (scrobbled) return;
-
-            scrobbler.Scrobble(currentTrack);
-            ProcessScrobbleQueue();
-            scrobbled = true;
         }
 
         private void ProcessScrobbleQueue()
@@ -184,12 +184,9 @@ namespace GoogleMusicWrapper
         private void OnPlayPause()
         {
             currentlyPlaying = !currentlyPlaying;
-            if (!currentlyPlaying)
-            {
-                scrobblerTimer.Stop();
-                return;
-            }
-            scrobblerTimer.Start();
+
+            if (!currentlyPlaying) return;
+
             scrobbler.NowPlaying(currentTrack);
             ProcessScrobbleQueue();
         }
