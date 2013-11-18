@@ -31,6 +31,8 @@ namespace GoogleMusicWrapper
         {
             InitializeComponent();
             InitLastFM();
+
+            webControl.ViewType = WebViewType.Window;
         }
 
         private void InitLastFM()
@@ -71,7 +73,7 @@ namespace GoogleMusicWrapper
                                         });
             GlobalHotkeys.RegisterHotKey(Keys.MediaNextTrack,
                                         this,
-                                        () => webControl.ExecuteJavascript("SJBpost('nextSong');"));
+                                        () => webControl.ExecuteJavascript("$('.flat-button[data-id=forward]').click()"));
             GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack, 
                                         this,
                                         () =>
@@ -86,8 +88,6 @@ namespace GoogleMusicWrapper
 
         private void ProcessScrobbles()
         {
-            // Processes the scrobbles and discards any responses. This could be improved with thread-safe
-            //  logging and/or error handling
             scrobbler.Process();
         }
 
