@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -65,13 +66,13 @@ namespace GoogleMusicWrapper
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            GlobalHotkeys.RegisterHotKey(Keys.MediaPlayPause, 
+            GlobalHotkeys.RegisterHotKey(Keys.NumPad0, 
                                         this,
                                         () => {
                                             webControl.ExecuteJavascript("SJBpost('playPause');");
                                             OnPlayPause();
                                         });
-            GlobalHotkeys.RegisterHotKey(Keys.MediaNextTrack,
+            GlobalHotkeys.RegisterHotKey(Keys.NumPad1,
                                         this,
                                         () => webControl.ExecuteJavascript("$('.flat-button[data-id=forward]').click()"));
             GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack, 
@@ -88,7 +89,10 @@ namespace GoogleMusicWrapper
 
         private void ProcessScrobbles()
         {
-            scrobbler.Process();
+            var results = scrobbler.Process();
+            var x = 0;
+            var y = x;
+            if (y == 0 || results.Any()) return;
         }
 
         private void WebControl_OnLoadingFrameComplete(object sender, FrameEventArgs e)
