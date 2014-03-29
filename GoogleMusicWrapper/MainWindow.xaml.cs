@@ -111,10 +111,7 @@ namespace GoogleMusicWrapper
 
         private void ProcessScrobbles()
         {
-            var results = scrobbler.Process();
-            var x = 0;
-            var y = x;
-            if (y == 0 || results.Any()) return;
+            scrobbler.Process();
         }
 
         private void WebControl_OnLoadingFrameComplete(object sender, FrameEventArgs e)
