@@ -20,6 +20,6 @@
             NativeViewInitialized="WebControl_OnNativeViewInitialized"
             WebSession="{Binding Source={StaticResource webSession}}"
             Height="1440"
-            Width="900"/>    
+            Width="900"/>   
     </Grid>
 </Window>

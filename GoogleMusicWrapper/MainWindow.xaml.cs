@@ -12,6 +12,9 @@ using Awesomium.Core;
 using GoogleMusicWrapper.Properties;
 using Lpfm.LastFmScrobbler;
 using MessageBox = System.Windows.Forms.MessageBox;
+using Timer = System.Timers.Timer;
+using System.Threading;
+using System.ComponentModel;
 
 namespace GoogleMusicWrapper
 {
@@ -26,6 +29,11 @@ namespace GoogleMusicWrapper
         private static Track currentTrack = new Track();
         private static bool currentlyPlaying;
         private static bool scrobbled;
+        private static Timer delayedOffTimer = new Timer();
+
+        private delegate void NoArgDelegate();
+
+        private readonly SynchronizationContext _syncContext;
 
         public MainWindow()
         {
@@ -33,6 +41,23 @@ namespace GoogleMusicWrapper
             InitLastFM();
 
             webControl.ViewType = WebViewType.Window;
+
+            _syncContext = SynchronizationContext.Current;
+
+            delayedOffTimer.AutoReset = false;
+            delayedOffTimer.Interval = 2700000;
+            delayedOffTimer.Elapsed += delayedOffTimer_Elapsed;
+        }
+
+        void delayedOffTimerElapsed()
+        {
+            this.webControl.ExecuteJavascript("SJBpost('playPause');");
+            OnPlayPause();
+        }
+
+        void delayedOffTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            _syncContext.Post(o => delayedOffTimerElapsed(), null);
         }
 
         private void InitLastFM()
@@ -67,24 +92,21 @@ namespace GoogleMusicWrapper
             base.OnSourceInitialized(e);
             GlobalHotkeys.RegisterHotKey(Keys.MediaPlayPause, 
                                         this,
-                                        () => {
+                                        () =>
+                                        {
                                             webControl.ExecuteJavascript("SJBpost('playPause');");
                                             OnPlayPause();
                                         });
             GlobalHotkeys.RegisterHotKey(Keys.MediaNextTrack,
                                         this,
                                         () => webControl.ExecuteJavascript("$('.flat-button[data-id=forward]').click()"));
-            GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack, 
-                                        this,
-                                        () =>
-                                        {
-                                            webControl.ExecuteJavascript("$('.thumbs:first > li').first().click();");
-                                            if(currentTrack != null)
-                                                scrobbler.Love(currentTrack);
-                                        });
+            GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack,
+                                         this,
+                                         () =>
+                                         {
+                                             delayedOffTimer.Start();
+                                         });
         }
-
-        private delegate void ProcessScrobblesDelegate();
 
         private void ProcessScrobbles()
         {
@@ -177,7 +199,7 @@ namespace GoogleMusicWrapper
 
         private void ProcessScrobbleQueue()
         {
-            var doProcessScrobbles = new ProcessScrobblesDelegate(ProcessScrobbles);
+            var doProcessScrobbles = new NoArgDelegate(ProcessScrobbles);
             doProcessScrobbles.BeginInvoke(null, null);
         }
 
