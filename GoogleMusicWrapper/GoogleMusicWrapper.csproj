@@ -37,13 +37,20 @@
     <ApplicationIcon>googlemusicicon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Awesomium.Core, Version=1.7.2.2, Culture=neutral, PublicKeyToken=e1a0d7c8071a5214, processorArchitecture=x86" />
-    <Reference Include="Awesomium.Windows.Controls, Version=1.7.2.2, Culture=neutral, PublicKeyToken=7a34e179b8b61c39, processorArchitecture=x86" />
-    <Reference Include="Awesomium.Windows.Forms, Version=1.7.2.2, Culture=neutral, PublicKeyToken=9bd24830fbe304a0, processorArchitecture=x86" />
-    <Reference Include="Lpfm.LastFmScrobbler">
-      <HintPath>..\packages\Lpfm.LastFmScrobbler.dll.1.3.0\lib\net40\Lpfm.LastFmScrobbler.dll</HintPath>
+    <Reference Include="Awesomium.Core, Version=1.7.3.0, Culture=neutral, PublicKeyToken=e1a0d7c8071a5214, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Awesomium Technologies LLC\Awesomium SDK\1.7.3.0\wrappers\Awesomium.NET\Assemblies\Awesomium.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Awesomium.Windows.Controls, Version=1.7.3.0, Culture=neutral, PublicKeyToken=7a34e179b8b61c39, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Awesomium Technologies LLC\Awesomium SDK\1.7.3.0\wrappers\Awesomium.NET\Assemblies\Awesomium.Windows.Controls.dll</HintPath>
+    </Reference>
+    <Reference Include="Awesomium.Windows.Forms, Version=1.7.3.0, Culture=neutral, PublicKeyToken=9bd24830fbe304a0, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Awesomium Technologies LLC\Awesomium SDK\1.7.3.0\wrappers\Awesomium.NET\Assemblies\Awesomium.Windows.Forms.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Data" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
@@ -72,6 +79,23 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="GlobalHotkeys.cs" />
+    <Compile Include="lpfm\Api\ApiHelper.cs" />
+    <Compile Include="lpfm\Api\AuthApi.cs" />
+    <Compile Include="lpfm\Api\IAuthApi.cs" />
+    <Compile Include="lpfm\Api\IRestApi.cs" />
+    <Compile Include="lpfm\Api\ITrackApi.cs" />
+    <Compile Include="lpfm\Api\LastFmApiException.cs" />
+    <Compile Include="lpfm\Api\TrackApi.cs" />
+    <Compile Include="lpfm\Api\WebRequestRestApi.cs" />
+    <Compile Include="lpfm\Authentication.cs" />
+    <Compile Include="lpfm\AuthenticationToken.cs" />
+    <Compile Include="lpfm\CorrectedTrack.cs" />
+    <Compile Include="lpfm\HttpUtility.cs" />
+    <Compile Include="lpfm\QueuingScrobbler.cs" />
+    <Compile Include="lpfm\Scrobbler.cs" />
+    <Compile Include="lpfm\ScrobbleResponse.cs" />
+    <Compile Include="lpfm\Session.cs" />
+    <Compile Include="lpfm\Track.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -95,6 +119,8 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="lpfm\bin\Release\Lpfm.LastFmScrobbler.dll.1.2.zip" />
+    <None Include="lpfm\bin\Release\Lpfm.LastFmScrobbler.dll.1.3.zip" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -117,6 +143,16 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="googlemusicicon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="lpfm\bin\Release\license.txt" />
+    <Content Include="lpfm\bin\Release\Lpfm.LastFmScrobbler.dll" />
+    <Resource Include="lpfm\bin\Release\Lpfm.LastFmScrobbler.XML" />
+    <Resource Include="lpfm\license.txt" />
+    <Content Include="lpfm\Lpfm.LastFmScrobbler.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="lpfm\Properties\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
