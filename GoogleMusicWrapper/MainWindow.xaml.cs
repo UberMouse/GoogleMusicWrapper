@@ -95,12 +95,12 @@ namespace GoogleMusicWrapper
                                         this,
                                         () =>
                                         {
-                                            webControl.ExecuteJavascript("SJBpost('playPause');");
+                                            webControl.ExecuteJavascript("$('button[data-id=play-pause]').click();");
                                             OnPlayPause();
                                         });
             GlobalHotkeys.RegisterHotKey(Keys.NumPad1,
                                         this,
-                                        () => webControl.ExecuteJavascript("$('.flat-button[data-id=forward]').click()"));
+                                        () => webControl.ExecuteJavascript("$('button[data-id=forward]').click()"));
             GlobalHotkeys.RegisterHotKey(Keys.MediaPreviousTrack,
                                          this,
                                          () =>
